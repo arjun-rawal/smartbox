@@ -1,7 +1,7 @@
 var numOfTasks = -0;
 var x;
 
-
+localStorage.clear();
 function showPrevTasks(){
     for (var i =0;i<localStorage.length;i++){
         x = localStorage.getItem(i.toString());
