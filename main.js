@@ -61,7 +61,7 @@ var x;
     }
 
     function unlockBlue(){
-        x.writeValue(Uint8Array.of(02));
+        x.writeValue(Uint8Array.of(3));
     }
 
 
