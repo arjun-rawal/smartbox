@@ -24,6 +24,12 @@ import {
 import { auth, googleProvider } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 
 const LoginForm = ({ className, ...props }) => {
   const [email, setEmail] = useState("");
@@ -39,10 +45,39 @@ const LoginForm = ({ className, ...props }) => {
   const { toast } = useToast();
   const router = useRouter();
   const recaptchaVerifiedRef = useRef(null);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const response = await fetch("/session", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.user) {
+              router.push("/dashboard");
+          }
+          else {
+            setUser(0)
+            console.log("No user found")
+          }
+        }
+        else{
+          setUser(0)
+          console.log("No user found")
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+      }
+    };
+    checkSession();
+  }, [router]);
 
   useEffect(() => {
     return () => {
-      if (recaptchaVerifiedRef.currnet){
+      if (recaptchaVerifiedRef.currnet) {
         recaptchaVerifiedRef.current.clear();
         recaptchaVerifiedRef.current = null;
       }
@@ -133,7 +168,7 @@ const LoginForm = ({ className, ...props }) => {
 
       // Reset the reCAPTCHA verifier
       if (recaptchaVerifiedRef.current) {
-       await recaptchaVerifiedRef.current.clear();
+        await recaptchaVerifiedRef.current.clear();
         recaptchaVerifierRef.current = null;
       }
     } finally {
@@ -147,6 +182,7 @@ const LoginForm = ({ className, ...props }) => {
     setIsLoading(true);
 
     try {
+      let userCredential;
       if (isSignUp) {
         // Validate password length
         if (password.length < 6) {
@@ -169,7 +205,7 @@ const LoginForm = ({ className, ...props }) => {
         }
 
         // Sign up
-        const userCredential = await createUserWithEmailAndPassword(
+        userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
           password
@@ -181,7 +217,7 @@ const LoginForm = ({ className, ...props }) => {
         });
       } else {
         // Sign in
-        const userCredential = await signInWithEmailAndPassword(
+        userCredential = await signInWithEmailAndPassword(
           auth,
           email,
           password
@@ -192,7 +228,30 @@ const LoginForm = ({ className, ...props }) => {
           description: "Welcome back!",
         });
       }
-      router.push("/dashboard");
+      if (userCredential && userCredential.user) {
+        console.log("HERE", userCredential);
+
+        const idToken = await userCredential._tokenResponse.idToken;
+        console.log("IDTOKEN:", idToken);
+        const response = await fetch("/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to authenticate with the server");
+        }
+        setUser(userCredential.user);
+        router.push("/dashboard");
+      } else {
+        console.error("Authentication failed");
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description: "An unexpected error ocurred",
+        });
+      }
     } catch (error) {
       console.error("Auth error:", error);
       // Handle specific Firebase auth errors
@@ -222,7 +281,19 @@ const LoginForm = ({ className, ...props }) => {
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log(result);
+      const idToken = await result._tokenResponse.idToken;
+      const response = await fetch("/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to authenticate with the server");
+      }
+
       toast({
         title: "Signed in successfully!",
         description: "Welcome to Smart Box.",
@@ -255,6 +326,16 @@ const LoginForm = ({ className, ...props }) => {
     setIsLoading(true);
     try {
       const result = await confirmationResult.confirm(verificationCode);
+      const idToken = await result._tokenResponse.idToken;
+      const response = await fetch("/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to authenticate with the server");
+      }
       toast({
         title: "Phone verified successfully!",
         description: "Welcome to Smart Box.",
@@ -282,7 +363,7 @@ const LoginForm = ({ className, ...props }) => {
               id="phone"
               type="tel"
               placeholder="+1 (123) 456 7890"
-              value={(phoneNumber)}
+              value={phoneNumber}
               onChange={(e) => {
                 const cleaned = e.target.value.replace(/\D/g, "");
                 const match = cleaned.match(
@@ -311,15 +392,21 @@ const LoginForm = ({ className, ...props }) => {
         <>
           <div className="grid gap-2">
             <Label htmlFor="code">Verification Code</Label>
-            <Input
-              id="code"
-              type="text"
-              placeholder="Enter 6-digit code"
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value)}
-              maxLength={6}
+            <InputOTP
               required
-            />
+              maxLength={6}
+              value={verificationCode}
+              onChange={(value) => setVerificationCode(value)}
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+                <InputOTPSlot index={3} />
+                <InputOTPSlot index={4} />
+                <InputOTPSlot index={5} />
+              </InputOTPGroup>
+            </InputOTP>
           </div>
           <Button
             onClick={verifyPhoneCode}
@@ -344,6 +431,26 @@ const LoginForm = ({ className, ...props }) => {
   );
 
   return (
+    <>
+  {(user===null) ? 
+        <div className="flex items-center justify-center min-h-screen">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="animate-spin"
+  >
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </svg> 
+  </div>
+  : 
+
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="rounded-2xl shadow-lg ring-2 ring-[#a18496] hover:ring-4 transition-all duration-300">
         <CardHeader className="text-center">
@@ -506,10 +613,11 @@ const LoginForm = ({ className, ...props }) => {
         and <a href="#">Privacy Policy</a>.
       </div>
     </div>
+  }
+  </>
   );
 };
 
-// ... rest of your LoginPage component remains the same ...
 const LoginPage = () => {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
@@ -528,6 +636,7 @@ const LoginPage = () => {
         <div className="flex justify-center gap-2 md:justify-start"></div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-md">
+
             <LoginForm />
           </div>
         </div>
