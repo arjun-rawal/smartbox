@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
     // Verify the ID token
     const decodedToken = await auth().verifyIdToken(idToken);
-
+    console.log("DECODEDTOKEN",decodedToken)
     // Create session cookie
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     const sessionCookie = await auth().createSessionCookie(idToken, { expiresIn });
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     console.error('Session creation error:', error);
 
     return new Response(
-      JSON.stringify({ error: 'Unauthorized', message: error.message }),
+      JSON.stringify({ error: 'Unauthorized', message: "unauthorized" }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }
     );
   }
@@ -82,7 +82,7 @@ export async function GET(req: Request) {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
         });
-    } catch (error) {
+    } catch {
         return new Response(JSON.stringify({ user: null }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     }
 
