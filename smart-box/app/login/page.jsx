@@ -31,6 +31,11 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 const LoginForm = ({ className, ...props }) => {
   const [email, setEmail] = useState("");
@@ -47,7 +52,7 @@ const LoginForm = ({ className, ...props }) => {
   const router = useRouter();
   const recaptchaVerifiedRef = useRef(null);
   const [user, setUser] = useState(null);
-
+const [forgotPasswordEmail, setForgotPasswordEmail] = useState(null)
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -176,7 +181,6 @@ const LoginForm = ({ className, ...props }) => {
       setIsLoading(false);
     }
   };
-  // ... existing code ...
 
   const handleEmailPasswordAuth = async (e) => {
     e.preventDefault();
@@ -276,6 +280,24 @@ const LoginForm = ({ className, ...props }) => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+
+
+  const sendPasswordResetEmail = async (email) => {
+    try {
+      await auth.sendPasswordResetEmail(email);
+      toast({
+        variant: "default",
+        title: "Password Rest Link Sent!",
+        description: "Check your email",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: {error}
+      });
     }
   };
 
@@ -547,12 +569,45 @@ const LoginForm = ({ className, ...props }) => {
                     <div className="flex items-center">
                       <Label htmlFor="password">Password</Label>
                       {!isSignUp && (
-                        <a
-                          href="#"
+                        <Popover>
+                          <PopoverTrigger className="ml-auto text-sm underline-offset-4 hover:underline">
+                            Forgot password?
+                          </PopoverTrigger>
+                          <PopoverContent>
+                            Enter your account email
+                            <Input
+                            id="emailForgotPassword"
+                            type="email"
+                            placeholder="m@example.com"
+                            value={forgotPasswordEmail}
+                            onChange={(e)=> setForgotPasswordEmail(e.target.value)}
+                            />
+                              <Button onClick={sendPasswordResetEmail(forgotPasswordEmail)}>
+                            Submit
+                            </Button>
+                          </PopoverContent>
+                        
+                        {/* <PopoverTrigger                  
                           className="ml-auto text-sm underline-offset-4 hover:underline"
                         >
                           Forgot password?
-                        </a>
+                        </PopoverTrigger>
+                        <PopoverContent>
+                          Enter your account email
+                                              <Input
+                      id="email"
+                      type="email"
+                      placeholder="m@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                    <Button onClick={sendPasswordResetEmail(email)}>
+                      Submit
+                    </Button>
+
+                        </PopoverContent> */}
+                        </Popover>
                       )}
                     </div>
                     <Input
