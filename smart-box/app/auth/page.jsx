@@ -21,7 +21,7 @@ import {
   createUserWithEmailAndPassword,
   RecaptchaVerifier,
   signInWithPhoneNumber,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -286,11 +286,21 @@ const LoginForm = ({ className, ...props }) => {
   const sendPasswordReset = async (email) => {
     setIsLoading(true);
     try {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+        toast({
+          variant: "destructive",
+          title: "Not a valid email"
+        })
+        setIsLoading(false);
+        return;
+      }
+
+
       await sendPasswordResetEmail(auth, email);
       toast({
         variant: "default",
         title: "Password Rest Link Sent!",
-        description: "Check your email",
+        description: "Please check your email",
       });
       setForgotPasswordEmail("")
       setIsLoading(false);
@@ -304,11 +314,6 @@ const LoginForm = ({ className, ...props }) => {
       });
       setIsLoading(false);
     }
-    // setIsLoading(false);
-    // toast({
-    //   variant: "default",
-    //   title: "Password Reset Link Sent"
-    // })
   };
 
   const handleGoogleLogin = async () => {
