@@ -21,6 +21,7 @@ import {
   createUserWithEmailAndPassword,
   RecaptchaVerifier,
   signInWithPhoneNumber,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +36,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
+} from "@/components/ui/popover";
 
 const LoginForm = ({ className, ...props }) => {
   const [email, setEmail] = useState("");
@@ -52,7 +53,8 @@ const LoginForm = ({ className, ...props }) => {
   const router = useRouter();
   const recaptchaVerifiedRef = useRef(null);
   const [user, setUser] = useState(null);
-const [forgotPasswordEmail, setForgotPasswordEmail] = useState(null)
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -63,16 +65,14 @@ const [forgotPasswordEmail, setForgotPasswordEmail] = useState(null)
         if (response.ok) {
           const data = await response.json();
           if (data.user) {
-              router.push("/dashboard");
+            router.push("/dashboard");
+          } else {
+            setUser(0);
+            console.log("No user found");
           }
-          else {
-            setUser(0)
-            console.log("No user found")
-          }
-        }
-        else{
-          setUser(0)
-          console.log("No user found")
+        } else {
+          setUser(0);
+          console.log("No user found");
         }
       } catch (error) {
         console.error("Error checking session:", error);
@@ -283,22 +283,32 @@ const [forgotPasswordEmail, setForgotPasswordEmail] = useState(null)
     }
   };
 
-
-
-  const sendPasswordResetEmail = async (email) => {
+  const sendPasswordReset = async (email) => {
+    setIsLoading(true);
     try {
-      await auth.sendPasswordResetEmail(email);
+      await sendPasswordResetEmail(auth, email);
       toast({
         variant: "default",
         title: "Password Rest Link Sent!",
         description: "Check your email",
       });
+      setForgotPasswordEmail("")
+      setIsLoading(false);
+      
     } catch (error) {
+      console.log(error)
       toast({
         variant: "destructive",
-        title: {error}
+        title: { error },
+        description: "Please try again",
       });
+      setIsLoading(false);
     }
+    // setIsLoading(false);
+    // toast({
+    //   variant: "default",
+    //   title: "Password Reset Link Sent"
+    // })
   };
 
   const handleGoogleLogin = async () => {
@@ -455,222 +465,221 @@ const [forgotPasswordEmail, setForgotPasswordEmail] = useState(null)
 
   return (
     <>
-  {(user===null) ? 
+      {user === null ? (
         <div className="flex items-center justify-center min-h-screen">
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="animate-spin"
-  >
-    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-  </svg> 
-  </div>
-  : 
-
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="rounded-2xl shadow-lg ring-2 ring-[#a18496] hover:ring-4 transition-all duration-300">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">
-            {isPhoneLogin
-              ? "Phone Login"
-              : isSignUp
-              ? "Create Account"
-              : "Welcome back"}
-          </CardTitle>
-          <CardDescription>
-            {isPhoneLogin
-              ? "Login with your phone number"
-              : isSignUp
-              ? "Sign up with your email or Google account"
-              : "Login with your email or Google account"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isPhoneLogin ? (
-            renderPhoneAuth()
-          ) : (
-            <form onSubmit={handleEmailPasswordAuth}>
-              <div className="grid gap-6">
-                <div className="flex flex-col gap-4">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleGoogleLogin}
-                    type="button"
-                    disabled={isLoading}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      className="mr-2 h-4 w-4"
-                    >
-                      <path
-                        d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                    Continue with Google
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setIsPhoneLogin(true);
-                      setIsVerificationSent(false);
-                      setVerificationCode("");
-                    }}
-                    type="button"
-                    disabled={isLoading}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      className="mr-2 h-4 w-4"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                      />
-                    </svg>
-                    Continue with Phone
-                  </Button>
-                </div>
-
-                <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
-                  <span className="relative z-10 bg-background px-2 text-muted-foreground">
-                    Or continue with email
-                  </span>
-                </div>
-
-                <div className="grid gap-6">
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="m@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <div className="flex items-center">
-                      <Label htmlFor="password">Password</Label>
-                      {!isSignUp && (
-                        <Popover>
-                          <PopoverTrigger className="ml-auto text-sm underline-offset-4 hover:underline">
-                            Forgot password?
-                          </PopoverTrigger>
-                          <PopoverContent>
-                            Enter your account email
-                            <Input
-                            id="emailForgotPassword"
-                            type="email"
-                            placeholder="m@example.com"
-                            value={forgotPasswordEmail}
-                            onChange={(e)=> setForgotPasswordEmail(e.target.value)}
-                            />
-                              <Button onClick={sendPasswordResetEmail(forgotPasswordEmail)}>
-                            Submit
-                            </Button>
-                          </PopoverContent>
-                        
-                        {/* <PopoverTrigger                  
-                          className="ml-auto text-sm underline-offset-4 hover:underline"
-                        >
-                          Forgot password?
-                        </PopoverTrigger>
-                        <PopoverContent>
-                          Enter your account email
-                                              <Input
-                      id="email"
-                      type="email"
-                      placeholder="m@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                    <Button onClick={sendPasswordResetEmail(email)}>
-                      Submit
-                    </Button>
-
-                        </PopoverContent> */}
-                        </Popover>
-                      )}
-                    </div>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  {isSignUp && (
-                    <div className="grid gap-2">
-                      <Label htmlFor="confirmPassword">Confirm Password</Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                  )}
-
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Loading..." : isSignUp ? "Sign Up" : "Login"}
-                  </Button>
-                </div>
-              </div>
-            </form>
-          )}
-        </CardContent>
-      </Card>
-      {isPhoneLogin && (
-        <div className="text-balance text-center text-xs text-muted-foreground">
-          <button
-            onClick={() => {
-              setIsPhoneLogin(!isPhoneLogin);
-              setIsVerificationSent(false);
-              setVerificationCode("");
-            }}
-            className="hover:text-primary"
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="animate-spin"
           >
-            {"Use email instead"}
-          </button>
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+        </div>
+      ) : (
+        <div className={cn("flex flex-col gap-6", className)} {...props}>
+          <Card className="rounded-2xl shadow-lg ring-2 ring-[#a18496] hover:ring-4 transition-all duration-300">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-bold">
+                {isPhoneLogin
+                  ? "Phone Login"
+                  : isSignUp
+                  ? "Create Account"
+                  : "Welcome back"}
+              </CardTitle>
+              <CardDescription>
+                {isPhoneLogin
+                  ? "Login with your phone number"
+                  : isSignUp
+                  ? "Sign up with your email or Google account"
+                  : "Login with your email or Google account"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isPhoneLogin ? (
+                renderPhoneAuth()
+              ) : (
+                <form onSubmit={handleEmailPasswordAuth}>
+                  <div className="grid gap-6">
+                    <div className="flex flex-col gap-4">
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleGoogleLogin}
+                        type="button"
+                        disabled={isLoading}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          className="mr-2 h-4 w-4"
+                        >
+                          <path
+                            d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                        Continue with Google
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          setIsPhoneLogin(true);
+                          setIsVerificationSent(false);
+                          setVerificationCode("");
+                        }}
+                        type="button"
+                        disabled={isLoading}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          className="mr-2 h-4 w-4"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                          />
+                        </svg>
+                        Continue with Phone
+                      </Button>
+                    </div>
+
+                    <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
+                      <span className="relative z-10 bg-background px-2 text-muted-foreground">
+                        Or continue with email
+                      </span>
+                    </div>
+
+                    <div className="grid gap-6">
+                      <div className="grid gap-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="m@example.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <div className="flex items-center">
+                          <Label htmlFor="password">Password</Label>
+                          {!isSignUp && (
+                            <Popover>
+                              <PopoverTrigger className="ml-auto text-sm underline-offset-4 hover:underline">
+                                Forgot password?
+                              </PopoverTrigger>
+                              <PopoverContent className="p-4 rounded-md shadow-md bg-white">
+                                <p className="text-sm mb-2">
+                                  Enter your account email
+                                </p>
+
+                                <Input
+                                  id="emailForgotPassword"
+                                  type="email"
+                                  placeholder="m@example.com"
+                                  value={forgotPasswordEmail}
+                                  onChange={(e) =>
+                                    setForgotPasswordEmail(e.target.value)
+                                  }
+                                  required
+                                  className="mb-2"
+                                />
+
+                                <Button
+                                  onClick={() => sendPasswordReset(forgotPasswordEmail)}
+                                  disabled={isLoading}
+                                >
+                                  Send Verification Link
+                                </Button>
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                        </div>
+                        <Input
+                          id="password"
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+                      {isSignUp && (
+                        <div className="grid gap-2">
+                          <Label htmlFor="confirmPassword">
+                            Confirm Password
+                          </Label>
+                          <Input
+                            id="confirmPassword"
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                          />
+                        </div>
+                      )}
+
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={isLoading}
+                      >
+                        {isLoading
+                          ? "Loading..."
+                          : isSignUp
+                          ? "Sign Up"
+                          : "Login"}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+          {isPhoneLogin && (
+            <div className="text-balance text-center text-xs text-muted-foreground">
+              <button
+                onClick={() => {
+                  setIsPhoneLogin(!isPhoneLogin);
+                  setIsVerificationSent(false);
+                  setVerificationCode("");
+                }}
+                className="hover:text-primary"
+              >
+                {"Use email instead"}
+              </button>
+            </div>
+          )}
+          <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4">
+            <button
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="hover:text-primary"
+            >
+              {isSignUp
+                ? "Already have an account? Login"
+                : "Don't have an account? Sign up"}
+            </button>
+          </div>
+          <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary">
+            By clicking continue, you agree to our{" "}
+            <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+          </div>
         </div>
       )}
-      <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4">
-        <button
-          onClick={() => setIsSignUp(!isSignUp)}
-          className="hover:text-primary"
-        >
-          {isSignUp
-            ? "Already have an account? Login"
-            : "Don't have an account? Sign up"}
-        </button>
-      </div>
-      <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
-      </div>
-    </div>
-  }
-  </>
+    </>
   );
 };
 
@@ -692,7 +701,6 @@ const LoginPage = () => {
         <div className="flex justify-center gap-2 md:justify-start"></div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-md">
-
             <LoginForm />
           </div>
         </div>
