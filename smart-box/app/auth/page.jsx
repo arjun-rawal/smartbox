@@ -65,7 +65,7 @@ const LoginForm = ({ className, ...props }) => {
         if (response.ok) {
           const data = await response.json();
           if (data.user) {
-            router.push("/dashboard");
+            router.push("/onboard");
           } else {
             setUser(0);
             console.log("No user found");
@@ -248,7 +248,7 @@ const LoginForm = ({ className, ...props }) => {
           throw new Error("Failed to authenticate with the server");
         }
         setUser(userCredential.user);
-        router.push("/dashboard");
+        router.push("/onboard");
       } else {
         console.error("Authentication failed");
         toast({
@@ -336,7 +336,7 @@ const LoginForm = ({ className, ...props }) => {
         title: "Signed in successfully!",
         description: "Welcome to Smart Box.",
       });
-      router.push("/dashboard");
+      router.push("/onboard");
     } catch (error) {
       // Check if the error is due to popup being closed
       if (error.code === "auth/popup-closed-by-user") {
@@ -378,7 +378,7 @@ const LoginForm = ({ className, ...props }) => {
         title: "Phone verified successfully!",
         description: "Welcome to Smart Box.",
       });
-      router.push("/dashboard");
+      router.push("/onboard");
     } catch (error) {
       console.error("Verification error:", error);
       toast({
