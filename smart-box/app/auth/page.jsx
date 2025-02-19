@@ -23,7 +23,8 @@ import {
   signInWithPhoneNumber,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+import { collection, doc, getDocs, setDoc } from 'firebase/firestore'; 
+import { auth, googleProvider, db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import {
@@ -215,6 +216,21 @@ const LoginForm = ({ className, ...props }) => {
           email,
           password
         );
+        const user = userCredential.user;
+        console.log(user)
+        console.log(db)
+        console.log(user.uid,user.email,user.displayName,user.photoURL)
+
+        // const querySnapshot = await getDocs(collection(db, "users"));
+        // querySnapshot.forEach((doc) => {
+        //   console.log(`${doc.id} => ${doc.data()}`);
+        // });
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || '', // Add display name if available
+          photoURL: user.photoURL || '', // Add photo URL if available
+        });
         console.log(userCredential);
         toast({
           title: "Account created successfully!",
