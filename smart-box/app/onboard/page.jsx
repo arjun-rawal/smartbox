@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   GraduationCap,
   Baby,
@@ -15,7 +15,9 @@ import {
   Check,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-
+import { doc, updateDoc, getFirestore } from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { app, db } from "@/lib/firebase";
 const UserTypeSelection = () => {
   const [userType, setUserType] = useState(null);
   const [ageRange, setAgeRange] = useState(null);
@@ -28,7 +30,7 @@ const UserTypeSelection = () => {
     2: null,
     3: null,
   });
-  const [isSubmitting, setIsSubmitting] = useState(false); 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const handleOptionSelect = (value) => {
     const stateUpdater = stateSetters[currentScreen];
@@ -36,15 +38,40 @@ const UserTypeSelection = () => {
     setSelectedOptions((prev) => ({ ...prev, [currentScreen]: value }));
   };
 
-  const handleNext = () => {
+  const [userUid, setUserUid] = useState(null);
+  useEffect(() => {
+    const auth = getAuth(app);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserUid(user.uid);
+      } else {
+        setUserUid(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleNext = async () => {
     if (currentScreen === 3) {
-      // Handle form submission here
       setIsSubmitting(true);
-       console.log(selectedOptions);
-       setTimeout(() => {
+      try {
+        const userRef = doc(db, "users", userUid);
+
+        await updateDoc(userRef, {
+          onBoard: true,
+          userType,
+          ageRange,
+          referralSource,
+        });
+      } catch (error) {
+        console.error(error);
+      }
+
+      setTimeout(() => {
         router.push("/dashboard");
       }, 300);
-     return;
+      return;
     }
 
     setFadeDirection("out");
@@ -188,9 +215,7 @@ const UserTypeSelection = () => {
               <div
                 key={step}
                 className={`h-1.5 w-8 rounded-full transition-all duration-300 ${
-                  currentScreen >= step
-                    ? "bg-[#a18496] w-12"
-                    : "bg-gray-200"
+                  currentScreen >= step ? "bg-[#a18496] w-12" : "bg-gray-200"
                 }`}
               />
             ))}
@@ -255,7 +280,7 @@ const UserTypeSelection = () => {
       </div>
 
       <div className="flex justify-center w-full max-w-lg mt-4">
-        {(currentScreen > 1 && currentScreen <= 3) && (
+        {currentScreen > 1 && currentScreen <= 3 && (
           <button
             onClick={() => handleBack(currentScreen - 1)}
             className="flex items-center gap-2 text-gray-600 hover:text-[#a18496] font-medium px-6 py-2 rounded-lg hover:bg-[#a18496]/10 transition-colors"
@@ -270,15 +295,33 @@ const UserTypeSelection = () => {
             className="px-8 py-2.5 bg-[#a18496] hover:bg-[#a18496]/90 text-white rounded-lg font-medium transition-all transform hover:scale-105 disabled:opacity-50"
             disabled={!selectedOptions[currentScreen]}
           >
-            {isSubmitting ? 
-                <div className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Submitting...
-                </div>
-            : "Continue"}
+            {isSubmitting ? (
+              <div className="flex items-center">
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Submitting...
+              </div>
+            ) : (
+              "Continue"
+            )}
           </button>
         )}
       </div>

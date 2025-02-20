@@ -3,25 +3,21 @@ import { NextResponse } from 'next/server';
 export async function middleware(request) {
   const sessionCookie = request.cookies.get('session')?.value;
 
-  // Define protected routes
-  const protectedRoutes = ['/dashboard', '/profile'];
-  const authRoutes = ['/auth', '/auth'];
+  const protectedRoutes = ['/dashboard', '/profile', '/onboard'];
+  const authRoutes = ['/auth'];
 
-  // Check if the user is trying to access a protected route
   const isProtectedRoute = protectedRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
   );
 
-  // Check if the user is trying to access an auth route
   const isAuthRoute = authRoutes.includes(request.nextUrl.pathname);
 
-  // Redirect unauthenticated users from protected routes to the login page
+  // If not authenticated, redirect from protected routes to /auth
   if (isProtectedRoute && !sessionCookie) {
     return NextResponse.redirect(new URL('/auth', request.url));
   }
 
-  // Verify the session cookie for protected routes
-  if (isProtectedRoute && sessionCookie) {
+  if (sessionCookie) {
     try {
       const response = await fetch(`${request.nextUrl.origin}/session`, {
         method: 'GET',
@@ -31,56 +27,46 @@ export async function middleware(request) {
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Invalid session cookie');
+      if (!response.ok) throw new Error('Invalid session cookie');
+
+      const { decodedSession } = await response.json();
+      const { uid, onBoard =false } = decodedSession;
+
+      console.log(decodedSession)
+      console.log('User authenticated:', uid, 'onBoard:', onBoard);
+
+      // Authenticated users trying to access /auth -> redirect to dashboard/onboard
+      if (isAuthRoute) {
+        return NextResponse.redirect(
+          new URL(onBoard ? '/dashboard' : '/onboard', request.url)
+        );
       }
 
-      const { uid } = await response.json();
-      console.log('User authenticated:', uid);
+      const isOnboardRoute = request.nextUrl.pathname.startsWith('/onboard');
+      const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard');
 
-      // Allow the request to continue
+      // If onboard is false -> kick user to /onboard from /dashboard
+      if (onBoard === false && isDashboardRoute) {
+        return NextResponse.redirect(new URL('/onboard', request.url));
+      }
+
+      // If onboard is true -> kick user to /dashboard from /onboard
+      if (onBoard === true && isOnboardRoute) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+
+      // Otherwise, let them continue
       return NextResponse.next();
     } catch (error) {
       console.error('Error verifying session cookie:', error);
-
-      // Redirect to login if the session cookie is invalid
       return NextResponse.redirect(new URL('/auth', request.url));
     }
   }
 
-  // Redirect authenticated users away from auth routes
-  if (isAuthRoute && sessionCookie) {
-    try {
-      const response = await fetch(`${request.nextUrl.origin}/session`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Cookie: `session=${sessionCookie}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Invalid session cookie');
-      }
-
-      const { uid } = await response.json();
-      console.log('User authenticated:', uid);
-
-      // Redirect to dashboard if the user is already authenticated
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    } catch (error) {
-      console.error('Error verifying session cookie:', error);
-
-      // Allow the request to continue if the session cookie is invalid
-      return NextResponse.next();
-    }
-  }
-
-  // Allow the request to continue for non-protected routes
+  // Default allow
   return NextResponse.next();
 }
 
-// Define which routes the middleware should run on
 export const config = {
-  matcher: ['/dashboard/:path*', '/auth/:path*'],
+  matcher: ['/dashboard/:path*', '/onboard/:path*', '/auth/:path*'],
 };
