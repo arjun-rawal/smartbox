@@ -23,7 +23,7 @@ import {
   signInWithPhoneNumber,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { collection, doc, getDocs, setDoc } from 'firebase/firestore'; 
+import { collection, doc, getDocs, setDoc, getDoc } from 'firebase/firestore'; 
 import { auth, googleProvider, db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -84,7 +84,7 @@ const LoginForm = ({ className, ...props }) => {
 
   useEffect(() => {
     return () => {
-      if (recaptchaVerifiedRef.currnet) {
+      if (recaptchaVerifiedRef.current) {
         recaptchaVerifiedRef.current.clear();
         recaptchaVerifiedRef.current = null;
       }
@@ -225,12 +225,20 @@ const LoginForm = ({ className, ...props }) => {
         // querySnapshot.forEach((doc) => {
         //   console.log(`${doc.id} => ${doc.data()}`);
         // });
-        await setDoc(doc(db, "users", user.uid), {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName || '', // Add display name if available
-          photoURL: user.photoURL || '', // Add photo URL if available
-        });
+        try {
+          await setDoc(doc(db, "users", user.uid), {
+            uid: user.uid,
+            email: user.email,
+          });
+          console.log("User successfully written!");
+        } catch (error) {
+          console.error("Error writing document: ", error);
+          toast({
+            variant: "destructive",
+            title: "Database Write Error",
+            description: error.message,
+          });
+        }
         console.log(userCredential);
         toast({
           title: "Account created successfully!",

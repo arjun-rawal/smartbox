@@ -17,11 +17,10 @@ import { getFirestore } from "firebase/firestore";
 let app;
 let auth;
 let googleProvider;
-let db;
 
 app = initializeApp(firebaseConfig);
 auth = getAuth(app);
-db = getFirestore(app)
+const db = getFirestore(app)
 googleProvider = new GoogleAuthProvider();
 
 export { auth, googleProvider, db };

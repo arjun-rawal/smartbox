@@ -5,7 +5,7 @@ export async function middleware(request) {
 
   // Define protected routes
   const protectedRoutes = ['/dashboard', '/profile'];
-  const authRoutes = ['/auth/login', '/auth/signup'];
+  const authRoutes = ['/auth', '/auth'];
 
   // Check if the user is trying to access a protected route
   const isProtectedRoute = protectedRoutes.some((route) =>
@@ -23,8 +23,8 @@ export async function middleware(request) {
   // Verify the session cookie for protected routes
   if (isProtectedRoute && sessionCookie) {
     try {
-      const response = await fetch(`${request.nextUrl.origin}/api/verify-session`, {
-        method: 'POST',
+      const response = await fetch(`${request.nextUrl.origin}/session`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           Cookie: `session=${sessionCookie}`,
@@ -44,7 +44,7 @@ export async function middleware(request) {
       console.error('Error verifying session cookie:', error);
 
       // Redirect to login if the session cookie is invalid
-      return NextResponse.redirect(new URL('/auth/login', request.url));
+      return NextResponse.redirect(new URL('/auth', request.url));
     }
   }
 
