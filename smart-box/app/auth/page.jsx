@@ -345,6 +345,26 @@ const LoginForm = ({ className, ...props }) => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       console.log(result);
+      
+      // Write user data to Firestore
+      try {
+        const user = result.user;
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL
+        });
+        console.log("Google user successfully written to database!");
+      } catch (error) {
+        console.error("Error writing Google user to database: ", error);
+        toast({
+          variant: "destructive",
+          title: "Database Write Error",
+          description: error.message,
+        });
+      }
+
       const idToken = await result._tokenResponse.idToken;
       const response = await fetch("/session", {
         method: "POST",
@@ -362,24 +382,24 @@ const LoginForm = ({ className, ...props }) => {
       });
       router.push("/onboard");
     } catch (error) {
-      // Check if the error is due to popup being closed
-      if (error.code === "auth/popup-closed-by-user") {
-        // Just reset loading state if user closed the popup
-        setIsLoading(false);
-        toast({
-          title: "Sign in cancelled",
-          description: "You closed the Google sign-in window",
-        });
-      } else {
-        // Handle other errors
-        console.error("Google sign-in error:", error);
-        toast({
-          variant: "destructive",
-          title: "Authentication Error",
-          description: "Failed to sign in with Google.",
-        });
-      }
-    } finally {
+         // Check if the error is due to popup being closed
+         if (error.code === "auth/popup-closed-by-user") {
+          // Just reset loading state if user closed the popup
+          setIsLoading(false);
+          toast({
+            title: "Sign in cancelled",
+            description: "You closed the Google sign-in window",
+          });
+        } else {
+          // Handle other errors
+          console.error("Google sign-in error:", error);
+          toast({
+            variant: "destructive",
+            title: "Authentication Error",
+            description: "Failed to sign in with Google.",
+          });
+        }
+      } finally {
       setIsLoading(false);
     }
   };
@@ -388,6 +408,24 @@ const LoginForm = ({ className, ...props }) => {
     setIsLoading(true);
     try {
       const result = await confirmationResult.confirm(verificationCode);
+      
+      // Write user data to Firestore
+      try {
+        const user = result.user;
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          phoneNumber: user.phoneNumber
+        });
+        console.log("Phone user successfully written to database!");
+      } catch (error) {
+        console.error("Error writing phone user to database: ", error);
+        toast({
+          variant: "destructive",
+          title: "Database Write Error",
+          description: error.message,
+        });
+      }
+
       const idToken = await result._tokenResponse.idToken;
       const response = await fetch("/session", {
         method: "POST",
